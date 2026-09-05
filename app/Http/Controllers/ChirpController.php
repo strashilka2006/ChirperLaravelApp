@@ -2,36 +2,59 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Chirp;
 use Illuminate\Http\Request;
 
 class ChirpController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-        public function index()
+    public function index()
     {
-        $chirps = [
-            [
-                'author' => 'Артём',
-                'message' => 'Первый чирп',
-                'time' => '2 минуты назад',
-            ],
-            [
-                'author' => 'Кто-то ещё',
-                'message' => 'И второй',
-                'time' => '5 минут назад',
-            ],
-        ];
+        $chirps = Chirp::with('user')
+            ->latest()
+            ->take(50)
+            ->get();
 
         return view('home', ['chirps' => $chirps]);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
+    public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'message' => 'required|string|max:255',
+        ]);
+
+        // Use the authenticated user
+        auth()->user()->chirps()->create($validated);
+
+        return redirect('/')->with('success', 'Your chirp has been posted!');
+    }
+
+    public function edit(Chirp $chirp)
+    {
+        $this->authorize('update', $chirp);
+
+        return view('chirps.edit', compact('chirp'));
+    }
+
+    public function update(Request $request, Chirp $chirp)
+    {
+        $this->authorize('update', $chirp);
+
+        $validated = $request->validate([
+            'message' => 'required|string|max:255',
+        ]);
+
+        $chirp->update($validated);
+
+        return redirect('/')->with('success', 'Chirp updated!');
+    }
+
+    public function destroy(Chirp $chirp)
+    {
+        $this->authorize('delete', $chirp);
+
+        $chirp->delete();
+
+        return redirect('/')->with('success', 'Chirp deleted!');
     }
 }
